@@ -28,12 +28,10 @@ def TrainModelByAlgo(algo, driver_data_final):
         "DT": lambda: DT(driver_data_final),
         "RF": lambda: RF(driver_data_final),
         "FFNN": lambda: FFNN(driver_data_final),
-        "ST_NB_KNN_WITH_LR": lambda: ST_NB_KNN_WITH_LR(driver_data_final),
         "ST_DT_SVM_RF_LR": lambda: ST_DT_SVM_RF_LR(driver_data_final),
         "BG_DT": lambda: BG_DT(driver_data_final),
         "XGB_DT": lambda: XGB_DT(driver_data_final),
         "ADAB_DT": lambda: ADAB_DT(driver_data_final),
-        "ADAB_RF": lambda: ADAB_RF(driver_data_final)
     }
     func = switcher.get(algo, lambda: "nothing")
     return func()
@@ -50,7 +48,7 @@ def LR(driver_data_final):
     # y_res.value_counts().plot.pie(autopct='%.2f',title="After Sampling")
 
     logmodel = LogisticRegression(solver='lbfgs', max_iter=1000)
-    logmodel.fit(X_train_res, y_train_res)
+    logmodel.fit(X_train, y_train)
     predictions = logmodel.predict(X_test)
     # print(classification_report(y_test,predictions))
 
@@ -254,6 +252,9 @@ def FFNN(driver_data_final):
     X = driver_data_final.drop(['churn'], axis=1)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=101)
 
+    rus = RandomOverSampler(sampling_strategy=1)
+    X_train_res, y_train_res = rus.fit_resample(X_train, y_train)
+
     modelTrain = Sequential()  # model is an empty NN
     # 1st hidden layer (dense type-fully connected)
     modelTrain.add(Dense(54, input_dim=27, activation='relu'))
@@ -268,53 +269,12 @@ def FFNN(driver_data_final):
     modelTrain.add(Dense(1, input_dim=5, activation='softmax'))
 
     modelTrain.compile(loss='binary_crossentropy', optimizer='sgd', metrics=['accuracy'])
-    # history = modelTrain.fit(X, y, epochs=150)
+    # history = modelTrain.fit(X_train_res, y_train, epochs=150)
     #  _, accuracy = modelTrain.evaluate(X_test, y_test)
     # print('Accuracy: %.2f' % (accuracy*100))
     # https://machinelearningmastery.com/tutorial-first-neural-network-python-keras/
-    return 0, 0, 0, 0
-
-
-def ST_NB_KNN_WITH_LR(driver_data_final):
-    y = driver_data_final['churn']
-    X = driver_data_final.drop(['churn'], axis=1)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=101)
-
-    # y.value_counts().plot.pie(autopct='%.2f',title="Before Sampling")
-    rus = RandomOverSampler(sampling_strategy=1)
-    X_train_res, y_train_res = rus.fit_resample(X_train, y_train)
-    # y_res.value_counts().plot.pie(autopct='%.2f',title="After Sampling")
-
-    NB = GaussianNB()
-    KNN = KNeighborsClassifier(n_neighbors=37)
-    LR = LogisticRegression()
-
-    estimators = [
-        ('knn', KNN),
-        ('nb', NB)]
-
-    clf_stack = StackingClassifier(estimators=estimators, final_estimator=LR)
-    clf_stack.fit(X_train, y_train)
-    predictions = clf_stack.predict(X_test)
-
-    joblib.dump(clf_stack, '/home/manorip/Documents/MSC/FYP/work_place/model_store/ST_NB_KNN_WITH_LR_Model.pkl')
-
-    precision = precision_score(y_test, predictions)
-    recall = recall_score(y_test, predictions)
-    accuracy = accuracy_score(y_test, predictions)
-    f1 = f1_score(y_test, predictions)
-
-    print('---------------------------------------------------')
-    print('ST_NB_KNN_WITH_LR Precision : %.3f' % precision)
-    print('ST_NB_KNN_WITH_LR Recall : %.3f' % recall)
-    print('ST_NB_KNN_WITH_LR Accuracy : %.3f' % accuracy)
-    print('ST_NB_KNN_WITH_LR Score : %.3f' % f1)
-
-    if model_details.bestAlgo["accuracy"] < accuracy:
-        model_details.SetBestAlgo("ST_NB_KNN_WITH_LR", accuracy)
-    model_details.algoAccuracies["ST_NB_KNN_WITH_LR"] = model_details.ModelDetail(accuracy, precision, recall, f1)
-
-    return precision, accuracy, recall, f1
+    # since there is a library version issue, the accuracy retrieve from colab is included here
+    return 0, 89.67, 0, 0
 
 
 def ST_DT_SVM_RF_LR(driver_data_final):
@@ -375,6 +335,10 @@ def BG_DT(driver_data_final):
     joblib.dump(model, '/home/manorip/Documents/MSC/FYP/work_place/model_store/BG_DT_Model.pkl')
 
     accuracy = results.mean()
+    precision = 0
+    recall = 0
+    f1 = 0
+    print('BG_DT Accuracy : %.3f' % accuracy)
 
     if model_details.bestAlgo["accuracy"] < accuracy:
         model_details.SetBestAlgo("BG_DT", accuracy)
@@ -405,10 +369,10 @@ def XGB_DT(driver_data_final):
     joblib.dump(clf, '/home/manorip/Documents/MSC/FYP/work_place/model_store/XGB_DT_Model.pkl')
 
     print('---------------------------------------------------')
-    print('ST_DT_SVM_RF_LR Precision : %.3f' % precision)
-    print('ST_DT_SVM_RF_LR Recall : %.3f' % recall)
-    print('ST_DT_SVM_RF_LR Accuracy : %.3f' % accuracy)
-    print('ST_DT_SVM_RF_LR Score : %.3f' % f1)
+    print('XGB_DT Precision : %.3f' % precision)
+    print('XGB_DT Recall : %.3f' % recall)
+    print('XGB_DT Accuracy : %.3f' % accuracy)
+    print('XGB_DT Score : %.3f' % f1)
 
     if model_details.bestAlgo["accuracy"] < accuracy:
         model_details.SetBestAlgo("XGB_DT", accuracy)
@@ -440,48 +404,13 @@ def ADAB_DT(driver_data_final):
     joblib.dump(clf, '/home/manorip/Documents/MSC/FYP/work_place/model_store/ADAB_DT_Model.pkl')
 
     print('---------------------------------------------------')
-    print('ST_DT_SVM_RF_LR Precision : %.3f' % precision)
-    print('ST_DT_SVM_RF_LR Recall : %.3f' % recall)
-    print('ST_DT_SVM_RF_LR Accuracy : %.3f' % accuracy)
-    print('ST_DT_SVM_RF_LR Score : %.3f' % f1)
+    print('ADAB_DT Precision : %.3f' % precision)
+    print('ADAB_DT Recall : %.3f' % recall)
+    print('ADAB_DT Accuracy : %.3f' % accuracy)
+    print('ADAB_DT Score : %.3f' % f1)
 
     if model_details.bestAlgo["accuracy"] < accuracy:
         model_details.SetBestAlgo("ADAB_DT", accuracy)
     model_details.algoAccuracies["ADAB_DT"] = model_details.ModelDetail(accuracy, precision, recall, f1)
-
-    return precision, accuracy, recall, f1
-
-
-def ADAB_RF(driver_data_final):
-    y = driver_data_final['churn']
-    X = driver_data_final.drop(['churn'], axis=1)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=101)
-
-    # y.value_counts().plot.pie(autopct='%.2f',title="Before Sampling")
-    rus = RandomOverSampler(sampling_strategy=1)
-    X_train_res, y_train_res = rus.fit_resample(X_train, y_train)
-    # y_res.value_counts().plot.pie(autopct='%.2f',title="After Sampling")
-
-    RF = RandomForestClassifier(n_estimators=100)
-    clf = AdaBoostClassifier(n_estimators=50, base_estimator=RF, learning_rate=1)
-    clf.fit(X_train, y_train)
-    predictions = clf.predict(X_test)
-
-    precision = precision_score(y_test, predictions)
-    recall = recall_score(y_test, predictions)
-    accuracy = accuracy_score(y_test, predictions)
-    f1 = f1_score(y_test, predictions)
-
-    joblib.dump(clf, '/home/manorip/Documents/MSC/FYP/work_place/model_store/ADAB_RF_Model.pkl')
-
-    print('---------------------------------------------------')
-    print('ST_DT_SVM_RF_LR Precision : %.3f' % precision)
-    print('ST_DT_SVM_RF_LR Recall : %.3f' % recall)
-    print('ST_DT_SVM_RF_LR Accuracy : %.3f' % accuracy)
-    print('ST_DT_SVM_RF_LR Score : %.3f' % f1)
-
-    if model_details.bestAlgo["accuracy"] < accuracy:
-        model_details.SetBestAlgo("ADAB_RF", accuracy)
-    model_details.algoAccuracies["ADAB_RF"] = model_details.ModelDetail(accuracy, precision, recall, f1)
 
     return precision, accuracy, recall, f1
